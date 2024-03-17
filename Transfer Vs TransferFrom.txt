@@ -1,0 +1,3 @@
+the difference between transfer to trnasferFrom is:
+    transfer is a regular transfer only from my account to another account.
+    trnasferFrom lets a third party transfer tokens from the source address to another address (as long as the third party has approval from the source)
