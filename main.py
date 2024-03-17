@@ -134,34 +134,42 @@ def get_token_data(address):
 
 
 def extract_log_information(logs):
-    logs_info = []
-
+    logs_dict = {}
     for log in logs:
-        approvalValue = ""
-        try:
-            if log["data"].hex() == constants.MAX_INT:
-                approvalValue = "INFINITY"
-            else:
-                approvalValue = abi.decode(["uint256"], log["data"])[0]
-        except:
-            approvalValue = "INFINITY"
-        owner_address_log = w3.to_checksum_address(
-            "0x" + log["topics"][1].hex()[2:].lstrip("0")
-        )
         recipient_address_log = w3.to_checksum_address(
-            "0x" + log["topics"][2].hex()[2:].lstrip("0")
+            padded_address_to_address(log["topics"][2])
         )
-        token = get_token_data(log["address"])
-        logs_info.append(
-            {
-                "owner": owner_address_log,
-                "to": log["address"],
-                "recipient": recipient_address_log,
-                "value": approvalValue,
-                "token": token,
-            }
-        )
-    return logs_info
+        try:
+            duplicate_log = logs_dict[recipient_address_log + log["address"]]
+        except:
+            duplicate_log = None
+        if duplicate_log == None or duplicate_log["log_index"] < log["logIndex"]:
+            approvalValue = ""
+            try:
+                if log["data"].hex() == constants.MAX_INT:
+                    approvalValue = INFINITY_CONST
+                else:
+                    approvalValue = abi.decode(["uint256"], log["data"])[0]
+            except:
+                approvalValue = "Unknown"
+            owner_address_log = w3.to_checksum_address(
+                padded_address_to_address(log["topics"][1])
+            )
+            token = get_token_data(log["address"])
+            logs_dict.update(
+                {
+                    recipient_address_log
+                    + log["address"]: {
+                        "owner": owner_address_log,
+                        "to": log["address"],
+                        "recipient": recipient_address_log,
+                        "value": approvalValue,
+                        "token": token,
+                        "log_index": log["logIndex"],
+                    }
+                }
+            )
+    return logs_dict.values()
 
 
 def get_token_prices(logs_info):
