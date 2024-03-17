@@ -14,6 +14,9 @@ COIN_GECKO_URL = "https://api.coingecko.com/api/v3/"
 COIN_GEKO_GET_TOKEN_PRICE = "simple/price"
 COIN_VS_CURRENCY = "usd"
 ABI_PATH = "abi.json"
+INFINITY_CONST = "INFINITY"
+HEX_PREFIX = "0x"
+
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
 
@@ -39,20 +42,13 @@ def approvalsByAddress(address_list: list[str], show_token_price):
         return "No Addresses Were Given"
 
     formatted_address_list = []
-    for transaction in address_list:
-        if transaction == "":
+    for address in address_list:
+        if address == "":
             return "An Empty Address Was Received"
         try:
-            formatted_address_list.append(
-                constants.HASH_ZERO[:2]
-                + hex(int(transaction, 0))
-                .strip()[2:]
-                .zfill(len(constants.HASH_ZERO[2:]))
-            )
+            formatted_address_list.append(address_to_padded_address(address))
         except Exception as exception:
-            return (
-                f"There Was A Problem With The Address Given {transaction}: {exception}"
-            )
+            return f"There Was A Problem With The Address Given {address}: {exception}"
 
     approved_logs = []
     try:
@@ -84,9 +80,7 @@ def approvalsByAddress(address_list: list[str], show_token_price):
         except:
             decimal = 1
         balance = convert_value_to_decimal(
-            transaction["token"]["contract"]
-            .functions.balanceOf(transaction["owner"])
-            .call(),
+            transaction["token"]["contract"].functions.balanceOf(transaction["owner"]).call(),
             decimal,
         )
         approve_amount = convert_value_to_decimal(
@@ -101,7 +95,7 @@ def approvalsByAddress(address_list: list[str], show_token_price):
             if len(token_prices) > 0
             else None
         )
-        approvalString = f'approval on {token_name} on amount of {convert_value_to_decimal(transaction["value"], decimal) if transaction["value"] != "INFINITY" else transaction["value"]} {f"With A Price Of {token_price} {COIN_VS_CURRENCY.upper()}" if token_price else ""} and is exposed to {exposure_amount}'
+        approvalString = f'approval on {token_name} on amount of {convert_value_to_decimal(transaction["value"], decimal) if transaction["value"] != INFINITY_CONST else transaction["value"]} {f"With A Price Of {token_price} {COIN_VS_CURRENCY.upper()}" if token_price else ""} and is exposed to {exposure_amount}'
         summary_string += f"{approvalString}\n"
         print(approvalString)
     return summary_string.splitlines()
@@ -182,3 +176,15 @@ def get_token_prices(logs_info):
         return token_price_request.json()
     except:
         return []
+
+
+def padded_address_to_address(address):
+    return HEX_PREFIX + address.hex()[len(HEX_PREFIX) :].lstrip("0").zfill(
+        len(constants.ADDRESS_ZERO[len(HEX_PREFIX) :])
+    )
+
+
+def address_to_padded_address(address):
+    return HEX_PREFIX + hex(int(address, 0)).strip()[len(HEX_PREFIX) :].zfill(
+        len(constants.HASH_ZERO[len(HEX_PREFIX):])
+    )
